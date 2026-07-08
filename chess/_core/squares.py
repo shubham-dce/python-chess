@@ -1,7 +1,6 @@
 from .types import Square, File, Rank, Bitboard
 from typing import List
 from .constants import RANK_NAMES, FILE_NAMES
-from .bitboard import *
 
 import math
 
@@ -142,6 +141,8 @@ def square_knight_distance(a: Square, b: Square) -> int:
     """
     dx = abs(square_file(a) - square_file(b))
     dy = abs(square_rank(a) - square_rank(b))
+
+    from .bitboard import BB_CORNERS, BB_SQUARES
 
     if dx + dy == 1:
         return 3
