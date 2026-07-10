@@ -1,0 +1,13 @@
+[Event "Test Game 1"]
+[White "A"]
+[Black "B"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 1-0
+
+[Event "Test Game 2"]
+[White "C"]
+[Black "D"]
+[Result "0-1"]
+
+1. d4 d5 0-1

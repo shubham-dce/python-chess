@@ -14,6 +14,7 @@ Contents
     engine
     svg
     variant
+    games_stats
 
 .. toctree::
     :maxdepth: 1
