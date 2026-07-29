@@ -4,7 +4,7 @@ import chess
 import itertools
 import typing
 
-from typing import Dict, Generic, Hashable, Iterable, Iterator, List, Optional, Type, TypeVar, Union
+from typing import Dict, Hashable, Iterable, Iterator, List, Optional, Type, TypeVar, Union
 
 if typing.TYPE_CHECKING:
     from typing_extensions import Self
@@ -764,7 +764,13 @@ class ThreeCheckBoard(chess.Board):
         self.remaining_checks[chess.WHITE] = wc
         self.remaining_checks[chess.BLACK] = bc
 
-    def epd(self, shredder: bool = False, en_passant: chess.EnPassantSpec = "legal", promoted: Optional[bool] = None, **operations: Union[None, str, int, float, chess.Move, Iterable[chess.Move]]) -> str:
+    def epd(
+        self,
+        shredder: bool = False,
+        en_passant: chess.EnPassantSpec = "legal",
+        promoted: Optional[bool] = None,
+        **operations: Union[None, str, int, float, chess.Move, Iterable[chess.Move]],
+    ) -> str:
         epd = [super().epd(shredder=shredder, en_passant=en_passant, promoted=promoted),
                "{:d}+{:d}".format(max(self.remaining_checks[chess.WHITE], 0),
                                   max(self.remaining_checks[chess.BLACK], 0))]
@@ -1035,7 +1041,13 @@ class CrazyhouseBoard(chess.Board):
         self.pockets[chess.WHITE] = white_pocket
         self.pockets[chess.BLACK] = black_pocket
 
-    def epd(self, shredder: bool = False, en_passant: chess.EnPassantSpec = "legal", promoted: Optional[bool] = None, **operations: Union[None, str, int, float, chess.Move, Iterable[chess.Move]]) -> str:
+    def epd(
+        self,
+        shredder: bool = False,
+        en_passant: chess.EnPassantSpec = "legal",
+        promoted: Optional[bool] = None,
+        **operations: Union[None, str, int, float, chess.Move, Iterable[chess.Move]],
+    ) -> str:
         epd = super().epd(shredder=shredder, en_passant=en_passant, promoted=promoted)
         board_part, info_part = epd.split(" ", 1)
         return f"{board_part}[{str(self.pockets[chess.WHITE]).upper()}{self.pockets[chess.BLACK]}] {info_part}"
@@ -1078,23 +1090,24 @@ class DuckChessBoard(chess.Board):
     uci_variant = "duck"
     starting_fen = chess.STARTING_FEN
 
-    def __init__(self, fen=starting_fen, chess960=False):
-        self.duck_square = None  # current duck square, or None if not yet placed
-        self.duck_phase = False  # False: about to make a chess move; True: about to place the duck
-        self._duck_history = []  # (duck_square, duck_phase) snapshots so pop() can undo duck placements too
+    def __init__(self, fen: Optional[str] = starting_fen, chess960: bool = False) -> None:
+        self.duck_square: Optional[chess.Square] = None  # current duck square, or None if not yet placed
+        self.duck_phase: bool = False  # False: about to make a chess move; True: about to place the duck
+        self._duck_history: List[tuple[Optional[chess.Square], bool]] = []  # (duck_square, duck_phase) snapshots so pop() can undo duck placements too
+        self.saved_occupied: chess.Bitboard = chess.BB_EMPTY
         super().__init__(fen, chess960=chess960)
 
-    def reset_board(self):
+    def reset_board(self) -> None:
         super().reset_board()
         self.duck_square = None
         self.duck_phase = False
 
-    def clear_board(self):
+    def clear_board(self) -> None:
         super().clear_board()
         self.duck_square = None
         self.duck_phase = False
 
-    def add_duck_as_blocker(self):
+    def add_duck_as_blocker(self) -> None:
         # Temporarily fold the duck into `occupied` so the base engine's bitboard
         # move generation treats its square as blocked, without giving it a color
         # or piece type.
@@ -1102,10 +1115,10 @@ class DuckChessBoard(chess.Board):
         if self.duck_square is not None:
             self.occupied |= chess.BB_SQUARES[self.duck_square]
 
-    def remove_duck_as_blocker(self):
+    def remove_duck_as_blocker(self) -> None:
         self.occupied = self.saved_occupied
 
-    def generate_pseudo_legal_moves(self, from_mask=chess.BB_ALL, to_mask=chess.BB_ALL):
+    def generate_pseudo_legal_moves(self, from_mask: chess.Bitboard = chess.BB_ALL, to_mask: chess.Bitboard = chess.BB_ALL) -> Iterator[chess.Move]:
         if self.duck_phase:
             return  # no chess moves while waiting for a duck placement
         if self.duck_square is not None:
@@ -1118,7 +1131,7 @@ class DuckChessBoard(chess.Board):
         for m in moves:
             yield m
 
-    def push(self, move):
+    def push(self, move: chess.Move) -> None:
         self._duck_history.append((self.duck_square, self.duck_phase))
         if not self.duck_phase:
             # Chess-move ply: delegate to the base engine, but undo the turn/
@@ -1139,7 +1152,7 @@ class DuckChessBoard(chess.Board):
             self.turn = not self.turn
             self.duck_phase = False
 
-    def pop(self):
+    def pop(self) -> chess.Move:
         prev_duck_square, prev_duck_phase = self._duck_history.pop()
         if not prev_duck_phase:
             move = super().pop()
@@ -1153,7 +1166,7 @@ class DuckChessBoard(chess.Board):
         self.duck_phase = prev_duck_phase
         return move
 
-    def duck_field(self):
+    def duck_field(self) -> str:
         # Extra FEN field encoding the duck: square name, "-" if unplaced, and
         # an "@" prefix if we're mid-turn waiting on a duck placement.
         prefix = "@" if self.duck_phase else ""
@@ -1163,7 +1176,7 @@ class DuckChessBoard(chess.Board):
             square_part = chess.SQUARE_NAMES[self.duck_square]
         return prefix + square_part
 
-    def looks_like_duck_field(self, token):
+    def looks_like_duck_field(self, token: str) -> bool:
         # Distinguishes a duck field from the standard FEN field it's inserted before .
         if token.startswith("@"):
             return True
@@ -1173,7 +1186,7 @@ class DuckChessBoard(chess.Board):
             return True
         return False
 
-    def set_duck_field(self, token):
+    def set_duck_field(self, token: str) -> None:
         if token.startswith("@"):
             self.duck_phase = True
             body = token[1:]
@@ -1185,15 +1198,15 @@ class DuckChessBoard(chess.Board):
         else:
             self.duck_square = chess.SQUARE_NAMES.index(body)
 
-    def fen(self, **kwargs):
+    def fen(self, *, shredder: bool = False, en_passant: chess.EnPassantSpec = "legal", promoted: Optional[bool] = None) -> str:
         # Insert the duck field after the en passant field (index 4), keeping
         # the rest of standard FEN layout intact.
-        base = super().fen(**kwargs)
+        base = super().fen(shredder=shredder, en_passant=en_passant, promoted=promoted)
         parts = base.split()
         parts.insert(4, self.duck_field())
         return " ".join(parts)
 
-    def set_fen(self, fen):
+    def set_fen(self, fen: str) -> None:
         parts = fen.split()
         if len(parts) > 4 and self.looks_like_duck_field(parts[4]):
             duck_token = parts.pop(4)
@@ -1202,7 +1215,7 @@ class DuckChessBoard(chess.Board):
         super().set_fen(" ".join(parts))
         self.set_duck_field(duck_token)
 
-    def generate_legal_moves(self, from_mask=chess.BB_ALL, to_mask=chess.BB_ALL):
+    def generate_legal_moves(self, from_mask: chess.Bitboard = chess.BB_ALL, to_mask: chess.Bitboard = chess.BB_ALL) -> Iterator[chess.Move]:
         if self.is_variant_end():
             return
         if self.duck_phase:
@@ -1210,7 +1223,7 @@ class DuckChessBoard(chess.Board):
         else:
             yield from self.generate_pseudo_legal_moves(from_mask, to_mask)
 
-    def generate_duck_placements(self, from_mask=chess.BB_ALL, to_mask=chess.BB_ALL):
+    def generate_duck_placements(self, from_mask: chess.Bitboard = chess.BB_ALL, to_mask: chess.Bitboard = chess.BB_ALL) -> Iterator[chess.Move]:
         # A duck placement is represented as a null-ish move onto
         # any empty square other than the duck's current one (it must move).
         empty_squares = chess.BB_ALL & ~self.occupied
@@ -1221,7 +1234,7 @@ class DuckChessBoard(chess.Board):
         for square in chess.scan_reversed(empty_squares):
             yield chess.Move(square, square)
 
-    def is_pseudo_legal(self, move):
+    def is_pseudo_legal(self, move: chess.Move) -> bool:
         if self.duck_phase:
             return False  # only duck placements are legal during the duck phase
         if move.from_square == move.to_square:
@@ -1234,7 +1247,7 @@ class DuckChessBoard(chess.Board):
         finally:
             self.remove_duck_as_blocker()
 
-    def is_legal(self, move):
+    def is_legal(self, move: chess.Move) -> bool:
         if self.duck_phase:
             # Duck chess has no pins/checks, so pseudo-legal placements are legal.
             if move.from_square != move.to_square:
@@ -1245,61 +1258,61 @@ class DuckChessBoard(chess.Board):
                 return False
             return True
         return self.is_pseudo_legal(move)
-    
-    #checks and checkmates are not relevant in duck chess, so we override these methods to always return False
-    def is_check(self):
+
+    # checks and checkmates are not relevant in duck chess, so we override these methods to always return False
+    def is_check(self) -> bool:
         return False
 
-    def gives_check(self, move):
+    def gives_check(self, move: chess.Move) -> bool:
         return False
 
-    def is_into_check(self, move):
+    def is_into_check(self, move: chess.Move) -> bool:
         return False
 
-    def was_into_check(self):
+    def was_into_check(self) -> bool:
         return False
 
-    def is_checkmate(self):
+    def is_checkmate(self) -> bool:
         return False
 
-    def checkers_mask(self):
+    def checkers_mask(self) -> chess.Bitboard:
         return chess.BB_EMPTY
 
-    def is_fifty_moves(self):
+    def is_fifty_moves(self) -> bool:
         return False
 
-    def is_seventyfive_moves(self):
+    def is_seventyfive_moves(self) -> bool:
         return False
 
-    def is_fivefold_repetition(self):
+    def is_fivefold_repetition(self) -> bool:
         return False
 
-    def is_repetition(self, count=3):
+    def is_repetition(self, count: int = 3) -> bool:
         return False
 
-    def is_variant_end(self):
+    def is_variant_end(self) -> bool:
         # Duck chess has no check/checkmate; the game ends only when a king is
         # actually captured which allows kings to be captured like any other piece.
         white_has_king = bool(self.kings & self.occupied_co[chess.WHITE])
         black_has_king = bool(self.kings & self.occupied_co[chess.BLACK])
         return not white_has_king or not black_has_king
 
-    def is_variant_win(self):
+    def is_variant_win(self) -> bool:
         my_king_alive = bool(self.kings & self.occupied_co[self.turn])
         their_king_alive = bool(self.kings & self.occupied_co[not self.turn])
         return my_king_alive and not their_king_alive
 
-    def is_variant_loss(self):
+    def is_variant_loss(self) -> bool:
         my_king_alive = bool(self.kings & self.occupied_co[self.turn])
         their_king_alive = bool(self.kings & self.occupied_co[not self.turn])
         return their_king_alive and not my_king_alive
 
-    def uci(self, move, *, chess960=None):
+    def uci(self, move: chess.Move, *, chess960: Optional[bool] = None) -> str:
         if move.from_square == move.to_square:
             return "@" + chess.SQUARE_NAMES[move.to_square]
         return super().uci(move, chess960=chess960)
 
-    def parse_uci(self, uci):
+    def parse_uci(self, uci: str) -> chess.Move:
         if uci.startswith("@"):
             square_name = uci[1:]
             square = chess.SQUARE_NAMES.index(square_name)
@@ -1309,13 +1322,13 @@ class DuckChessBoard(chess.Board):
             return move
         return super().parse_uci(uci)
 
-    def _algebraic_without_suffix(self, move, *, long=False):
+    def _algebraic_without_suffix(self, move: chess.Move, *, long: bool = False) -> str:
         # Mirrors uci(): SAN for a duck placement is also "@<square>".
         if move.from_square == move.to_square:
             return "@" + chess.SQUARE_NAMES[move.to_square]
         return super()._algebraic_without_suffix(move, long=long)
 
-    def parse_san(self, san):
+    def parse_san(self, san: str) -> chess.Move:
         if san.startswith("@"):
             square_name = san[1:].rstrip("+#")
             square = chess.SQUARE_NAMES.index(square_name)
@@ -1325,15 +1338,42 @@ class DuckChessBoard(chess.Board):
             return move
         return super().parse_san(san)
 
-    def has_insufficient_material(self, color):
-        # A lone king can still checkmate except duck chess has no 
+    def has_insufficient_material(self, color: chess.Color) -> bool:
+        # A lone king can still checkmate except duck chess has no
         # checkmate, only king capture, so material never forces a draw.
         return False
 
-    def _attacked_for_king(self, path, occupied):
-        # No check/pins in duck chess, so castling through "attacked" squares is never restricted 
+    def _attacked_for_king(self, path: chess.Bitboard, occupied: chess.Bitboard) -> bool:
+        # No check/pins in duck chess, so castling through "attacked" squares is never restricted
         return False
-    
+
+    def _transposition_key(self) -> Hashable:
+        return (super()._transposition_key(), self.duck_square, self.duck_phase)
+
+    def copy(self, *, stack: Union[bool, int] = True) -> Self:
+        board = super().copy(stack=stack)
+        board.duck_square = self.duck_square
+        board.duck_phase = self.duck_phase
+        board.saved_occupied = self.saved_occupied
+        if stack:
+            stack = len(self.move_stack) if stack is True else stack
+            board._duck_history = self._duck_history[-stack:]
+        return board
+
+    def mirror(self) -> Self:
+        board = super().mirror()
+        board.duck_square = None if self.duck_square is None else chess.square_mirror(self.duck_square)
+        board.duck_phase = self.duck_phase
+        return board
+
+    def status(self) -> chess.Status:
+        status = super().status()
+        status &= ~chess.STATUS_NO_WHITE_KING
+        status &= ~chess.STATUS_NO_BLACK_KING
+        status &= ~chess.STATUS_TOO_MANY_KINGS
+        status &= ~chess.STATUS_OPPOSITE_CHECK
+        return status
+
 VARIANTS: List[Type[chess.Board]] = [
     chess.Board,
     SuicideBoard, GiveawayBoard, AntichessBoard,
